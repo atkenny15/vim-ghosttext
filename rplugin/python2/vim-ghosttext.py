@@ -160,7 +160,7 @@ class Frame(object):
 #--------------------------------------------------
 
 class WebSocketServer(object):
-    def __init__(self, port, lock, done, event):
+    def __init__(self, port, lock, done, to_thread, from_thread):
         self.port = port
         self._sock = None
         self._conn = None
@@ -176,8 +176,10 @@ class WebSocketServer(object):
         # this is sent to all threads and should not be cleared
         self._done = done
 
-        # Indicates that data is availabe from Vim
-        self._event = event
+        # Indicates that data is available from Vim and that the thread has
+        # finished processing the data
+        self._to_thread = to_thread
+        self._from_thread = from_thread
 
         logging.info("Starting websocket on port %d", self.port)
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -244,13 +246,20 @@ class WebSocketServer(object):
                     self._update_to_vim(frame.payload.decode('utf-8'))
 
             # Check to see if GhostNotify was called
-            if self._event.is_set():
-                # Allow additional events to be queued
-                self._event.clear()
+            if self._to_thread.is_set():
+                # Reset event flag
+                self._to_thread.clear()
 
                 # Get data from Vim and send it to GhostText
                 logging.info("Event set")
                 self._update_from_vim()
+
+                # Tell GhostNotify to quit blocking
+                logging.info("Thread done")
+                self._from_thread.set()
+
+            if not self.valid:
+                break
 
             time.sleep(0.001)
 
@@ -402,8 +411,8 @@ class WebSocketServer(object):
         return accept
 
     @staticmethod
-    def startwebsocket(port, lock, done, event):
-        websocketserver = WebSocketServer(port, lock, done, event)
+    def startwebsocket(port, lock, done, to_thread, from_thread):
+        websocketserver = WebSocketServer(port, lock, done, to_thread, from_thread)
         thread = threading.Thread(target=websocketserver.serve_forever)
         thread.daemon = False
         thread.start()
@@ -428,9 +437,10 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         }
         logging.info("Handling HTTP request, starting websocket on port %d", port)
 
-        event = threading.Event()
-        sock = WebSocketServer.startwebsocket(port, self.server.vim_lock, self.server.done, event)
-        self.server.websocks.append({'sock': sock, 'event': event})
+        to_thread = threading.Event()
+        from_thread = threading.Event()
+        sock = WebSocketServer.startwebsocket(port, self.server.vim_lock, self.server.done, to_thread, from_thread)
+        self.server.websocks.append({'sock': sock, 'to_thread': to_thread, 'from_thread': from_thread})
 
         logging.info("Websocket started on port %d", port)
         self.wfile.write(json.dumps(response_obj).encode())
@@ -501,18 +511,25 @@ def GhostNotify():
     else:
         logging.info("GhostNotify update")
         found = 0
+        wait = []
         for ws in HTTPSERVER.websocks:
             # Indicate to the valid websockets that there is data ready in Vim
             if ws['sock'].valid:
-                if ws['event'].is_set():
-                    # For some reason two GhostNotify calls are made for every
-                    # TextChanged event. Multiple events are handled correctly
-                    # in the WebSocketServer
-                    logging.debug("Event is already set")
+                if ws['to_thread'].is_set():
+                    logging.error("To event is already set")
+                if ws['from_thread'].is_set():
+                    logging.error("From event is already set")
                 found = found + 1
                 if found:
-                    logging.debug("Setting event")
-                    ws['event'].set()
+                    logging.info("Setting event")
+                    ws['to_thread'].set()
+                    wait.append(ws)
+
+        for ws in wait:
+            logging.info("Waiting for thread completion")
+            ws['from_thread'].wait()
+            logging.info("Thread done")
+            ws['from_thread'].clear()
 
         if found == 0:
             logging.error("No valid websockets found")
