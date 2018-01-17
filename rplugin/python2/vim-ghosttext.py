@@ -295,7 +295,21 @@ class WebSocketServer(object):
 
         frame = Frame(fin=1, opcode=Frame.TEXT, mask=0, payload=bytearray(json.dumps(data)))
         logging.debug("Sending: '%s'", str(frame))
-        self._conn.sendall(frame.data)
+        try:
+            self._conn.sendall(frame.data)
+        except socket.error as e:
+            if e.errno == 32:
+                # socket.error: [Errno 32] Broken pipe
+                logging.info(str(e))
+                self.valid = False
+                self._conn.close()
+                self._conn = None
+
+                self._vim_lock.acquire()
+                vim.command('echo "GhostText closed the connection: {}"'.format(e))
+                self._vim_lock.release()
+            else:
+                raise
 
     def _update_to_vim(self, string):
         request = json.loads(string)
