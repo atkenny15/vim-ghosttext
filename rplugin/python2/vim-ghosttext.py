@@ -236,7 +236,7 @@ class WebSocketServer(object):
                     # frame
                     self._vim_lock.acquire()
                     logging.info('GhostText closed the connection')
-                    vim.command('echo "GhostText closed the connection, try re-loading the webpage if this was unexpected"')
+                    vim.command('echom "GhostText closed the connection, try re-loading the webpage if this was unexpected"')
                     self._vim_lock.release()
                     self._conn.close()
                     self._conn = None
@@ -308,7 +308,7 @@ class WebSocketServer(object):
                 self._conn = None
 
                 self._vim_lock.acquire()
-                vim.command('echo "GhostText closed the connection: {}"'.format(e))
+                vim.command('echom "GhostText closed the connection: {}"'.format(e))
                 self._vim_lock.release()
             else:
                 raise
@@ -464,7 +464,7 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         logging.info(format, *args)
         self.server.vim_lock.acquire()
-        vim.command('echo "Connection received from GhostText"')
+        vim.command('echom "Connection received from GhostText"')
         self.server.vim_lock.release()
 
 class MyHTTPServer(BaseHTTPServer.HTTPServer, object):
@@ -496,7 +496,7 @@ def GhostStart():
         thread.start()
 
         HTTPSERVER.vim_lock.acquire()
-        vim.command('echo "Starting server"')
+        vim.command('echom "Starting server"')
         logging.info("Starting HTTP server")
         vim.command('autocmd VimLeave * GhostStop')
         vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
@@ -510,7 +510,7 @@ def GhostStop():
         vim.command('echo "Server is not running"')
     else:
         HTTPSERVER.vim_lock.acquire()
-        vim.command('echo "Stopping server"')
+        vim.command('echom "Stopping server"')
         vim.command('autocmd! VimLeave * GhostStop')
         HTTPSERVER.vim_lock.release()
 
@@ -523,7 +523,7 @@ def GhostStop():
 def GhostNotify():
     global HTTPSERVER
     if HTTPSERVER is None:
-        vim.command('echo "Server is not running"')
+        vim.command('echom "Server is not running"')
     else:
         logging.info("GhostNotify update")
         found = 0
