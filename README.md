@@ -83,6 +83,10 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
 
 ## TODO
 
+- [ ] Lock updates to a single buffer
+- [ ] Fix logging
+- [ ] Test with multiple connections (from different browser tabs)
+- [ ] Test, test, test...
 - [ ] Add better support for WebSocket
     - [ ] Support all valid frame opcodes
     - [ ] Client side support

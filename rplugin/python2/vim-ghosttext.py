@@ -95,9 +95,6 @@ class Frame(object):
                 self.mask_key = self.mask_key | (data[i + next_byte] << (8 * i))
             next_byte = next_byte + i + 1
 
-        if self.payload_len + next_byte > 4096:
-            raise Exception(self.payload_len + next_byte)
-
         self.payload = data[next_byte:]
         if self.opcode == Frame.TEXT:
             unmasked = bytearray()
@@ -245,15 +242,6 @@ class WebSocketServer(object):
                     logging.debug("Data received")
                     self._update_to_vim(frame.payload.decode('utf-8'))
 
-                    # This can probably be removed, this was an attempt to
-                    # workaround the bug where GhostText is restarted. The hope
-                    # was to be able to prevent GhostText from sending a close
-                    # frame by responding with data, but the close frame is
-                    # still received
-                    if loop == 1:
-                        data = json.loads(frame.payload.decode('utf-8'))
-                        self._send_text(data['text'])
-
             # Check to see if GhostNotify was called
             if self._event.is_set():
                 # Allow additional events to be queued
@@ -334,13 +322,12 @@ class WebSocketServer(object):
         self._conn.sendall(send)
 
     def _recv(self, buf_len=4096, timeout=None, sleep=0.1, block=True):
-        msg = ''
+        msg = None
         while True:
             string = None
             if timeout is not None:
                 string = self._recv_timeout(buf_len, timeout, sleep)
                 if string is None:
-                    msg = None
                     break
             elif not block:
                 try:
@@ -364,6 +351,8 @@ class WebSocketServer(object):
                     break
             else:
                 string = self._conn.recv(buf_len)
+            if msg is None:
+                msg = ''
             msg = msg + string
             if len(string) < buf_len:
                 break
