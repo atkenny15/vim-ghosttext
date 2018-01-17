@@ -472,7 +472,7 @@ def GhostStart():
         HTTPSERVER.vim_lock.acquire()
         vim.command('echo "Starting server"')
         logging.info("Starting HTTP server")
-        vim.command('autocmd QuitPre * GhostStop')
+        vim.command('autocmd VimLeave * GhostStop')
         vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
         HTTPSERVER.vim_lock.release()
     else:
@@ -485,7 +485,7 @@ def GhostStop():
     else:
         HTTPSERVER.vim_lock.acquire()
         vim.command('echo "Stopping server"')
-        vim.command('autocmd! QuitPre * GhostStop')
+        vim.command('autocmd! VimLeave * GhostStop')
         HTTPSERVER.vim_lock.release()
 
         logging.info("Stopping threads")
