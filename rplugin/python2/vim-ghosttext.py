@@ -179,21 +179,21 @@ class WebSocketServer(object):
         # Indicates that data is availabe from Vim
         self._event = event
 
-        logging.debug("Starting websocket on port %d", self.port)
+        logging.info("Starting websocket on port %d", self.port)
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._sock.bind(('localhost', port))
         self._sock.listen(5)
 
     def __del__(self):
-        logging.debug("Cleaning up websocket")
+        logging.info("Cleaning up websocket")
 
     def serve_forever(self):
-        logging.debug("Serving")
+        logging.info("Serving")
         self._conn, self._addr = self._sock.accept()
-        logging.debug("Accepted connection")
+        logging.info("Accepted connection")
         self._handshake()
-        logging.debug("Handshake finished")
+        logging.info("Handshake finished")
 
         loop = 0
         update = time.time()
@@ -202,7 +202,7 @@ class WebSocketServer(object):
 
             if time.time() - update >= 3:
                 update = time.time()
-                logging.debug("Running...")
+                logging.info("Running...")
 
             # Check for data from socket
             recv = None
@@ -214,7 +214,7 @@ class WebSocketServer(object):
                 recv = self._recv(timeout=3)
 
                 if recv is None:
-                    logging.debug("Timeout while waiting for data on first loop")
+                    logging.info("Timeout while waiting for data on first loop")
                     # Socket is closed at the end of this function
                     break
 
@@ -232,6 +232,7 @@ class WebSocketServer(object):
                     # If the server indicated to close the socket via a close
                     # frame
                     self._vim_lock.acquire()
+                    logging.info('GhostText closed the connection')
                     vim.command('echo "GhostText closed the connection, try re-loading the webpage if this was unexpected"')
                     self._vim_lock.release()
                     self._conn.close()
@@ -239,7 +240,7 @@ class WebSocketServer(object):
                     break
                 else:
                     # Otherwise send data to Vim
-                    logging.debug("Data received")
+                    logging.info("Data received")
                     self._update_to_vim(frame.payload.decode('utf-8'))
 
             # Check to see if GhostNotify was called
@@ -248,12 +249,12 @@ class WebSocketServer(object):
                 self._event.clear()
 
                 # Get data from Vim and send it to GhostText
-                logging.debug("Event set")
+                logging.info("Event set")
                 self._update_from_vim()
 
             time.sleep(0.001)
 
-        logging.debug("Done serving")
+        logging.info("Done serving")
         if self._conn is not None:
             # Send close frame
             self._conn.sendall(Frame(opcode=Frame.CLOSE).data)
@@ -261,14 +262,14 @@ class WebSocketServer(object):
             self._conn = None
 
     def _update_from_vim(self):
-        logging.debug("Getting data from vim, waiting for lock")
+        logging.info("Getting data from vim, waiting for lock")
         self._vim_lock.acquire()
-        logging.debug("Lock acquired")
+        logging.info("Lock acquired")
 
         lines = vim.current.buffer[:]
 
         self._vim_lock.release()
-        logging.debug("Released lock")
+        logging.info("Released lock")
         text = '\n'.join(lines)
         self._send_text(text)
 
@@ -290,9 +291,9 @@ class WebSocketServer(object):
     def _update_to_vim(self, string):
         request = json.loads(string)
 
-        logging.debug("Sending data to vim, waiting for lock")
+        logging.info("Sending data to vim, waiting for lock")
         self._vim_lock.acquire()
-        logging.debug("Lock acquired")
+        logging.info("Lock acquired")
 
         vim.command('autocmd! TextChanged,TextChangedI * python GhostNotify()')
         vim.current.buffer[:] = request['text'].split('\n')
@@ -300,7 +301,7 @@ class WebSocketServer(object):
         vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
 
         self._vim_lock.release()
-        logging.debug("Released lock")
+        logging.info("Released lock")
 
     def _handshake(self):
         msg = self._recv()
@@ -425,17 +426,17 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             "ProtocolVersion": 1,
             "WebSocketPort": port,
         }
-        logging.debug("Handling HTTP request, starting websocket on port %d", port)
+        logging.info("Handling HTTP request, starting websocket on port %d", port)
 
         event = threading.Event()
         sock = WebSocketServer.startwebsocket(port, self.server.vim_lock, self.server.done, event)
         self.server.websocks.append({'sock': sock, 'event': event})
 
-        logging.debug("Websocket started on port %d", port)
+        logging.info("Websocket started on port %d", port)
         self.wfile.write(json.dumps(response_obj).encode())
 
     def log_message(self, format, *args):
-        logging.debug(format, *args)
+        logging.info(format, *args)
         self.server.vim_lock.acquire()
         vim.command('echo "Connection received from GhostText"')
         self.server.vim_lock.release()
@@ -498,7 +499,7 @@ def GhostNotify():
     if HTTPSERVER is None:
         vim.command('echo "Server is not running"')
     else:
-        logging.debug("GhostNotify update")
+        logging.info("GhostNotify update")
         found = 0
         for ws in HTTPSERVER.websocks:
             # Indicate to the valid websockets that there is data ready in Vim
@@ -533,7 +534,7 @@ if __name__ == '__main__':
         else:
             raise
 
-    logging.basicConfig(format='[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s', filename=temp_fn, level=logging.DEBUG)
+    logging.basicConfig(format='[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s', filename=temp_fn, level=logging.INFO)
     logging.info("Starting script...")
 
     # This runs the script without Vim to make debugging easier, input comes
