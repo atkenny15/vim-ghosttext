@@ -85,6 +85,7 @@ class Frame(object):
                 self.payload_len = (self.payload_len << 8) | data[i + next_byte]
             next_byte = next_byte + i + 1
         elif self.payload_len == 127:
+            self.payload_len = 0
             for i in range(8):
                 self.payload_len = (self.payload_len << 8) | data[i + next_byte]
             next_byte = next_byte + i + 1

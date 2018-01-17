@@ -91,7 +91,7 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
     - [ ] Support all valid frame opcodes
     - [ ] Client side support
         - [ ] Support mask generation in a Frame
-    - [ ] Test payload lengths > 16-bit
+    - [x] Test payload lengths > 16-bit
     - [ ] Better validation of handshake header
 - [ ] Vim Documentation
 - [ ] Improve comments
