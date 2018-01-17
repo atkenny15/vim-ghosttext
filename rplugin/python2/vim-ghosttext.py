@@ -264,6 +264,7 @@ class WebSocketServer(object):
             time.sleep(0.001)
 
         logging.info("Done serving")
+        self.valid = False
         if self._conn is not None:
             # Send close frame
             self._conn.sendall(Frame(opcode=Frame.CLOSE).data)
@@ -526,9 +527,11 @@ def GhostNotify():
         logging.info("GhostNotify update")
         found = 0
         wait = []
+        new = []
         for ws in HTTPSERVER.websocks:
             # Indicate to the valid websockets that there is data ready in Vim
             if ws['sock'].valid:
+                new.append(ws)
                 if ws['to_thread'].is_set():
                     logging.error("To event is already set")
                 if ws['from_thread'].is_set():
@@ -538,6 +541,7 @@ def GhostNotify():
                     logging.info("Setting event")
                     ws['to_thread'].set()
                     wait.append(ws)
+        HTTPSERVER.websocks = new
 
         for ws in wait:
             logging.info("Waiting for thread completion")
