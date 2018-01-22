@@ -37,7 +37,14 @@ except:
     from vimstub import vim
 
 import subprocess
-import BaseHTTPServer
+
+PYCMD = None
+if sys.version_info >= (3, 0):
+    import http.server as BaseHTTPServer
+    PYCMD = 'python3'
+else:
+    import BaseHTTPServer
+    PYCMD = 'python'
 
 #--------------------------------------------------
 # Frame
@@ -154,7 +161,7 @@ class Frame(object):
             self.payload_len,
             self.payload.decode('utf-8'),
         )
-        return string.encode('utf-8')
+        return string
 
 #--------------------------------------------------
 # WebSocket
@@ -232,7 +239,7 @@ class WebSocketServer(object):
             # If data was received on the socket
             if recv is not None:
                 frame = Frame(data=bytearray(recv))
-                logging.debug("Received: '%s'", str(frame))
+                logging.debug("Received: '%s'", frame)
 
                 if frame.closed:
                     # If the server indicated to close the socket via a close
@@ -301,7 +308,7 @@ class WebSocketServer(object):
 
         logging.debug("Sending: '%s'", data)
 
-        frame = Frame(fin=1, opcode=Frame.TEXT, mask=0, payload=bytearray(json.dumps(data)))
+        frame = Frame(fin=1, opcode=Frame.TEXT, mask=0, payload=json.dumps(data).encode('utf-8'))
         logging.debug("Sending: '%s'", str(frame))
         try:
             self._conn.sendall(frame.data)
@@ -326,10 +333,10 @@ class WebSocketServer(object):
         self._vim_lock.acquire()
         logging.info("Lock acquired")
 
-        vim.command('autocmd! TextChanged,TextChangedI * python GhostNotify()')
+        vim.command('autocmd! TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
         self._vim_buffer[:] = request['text'].split('\n')
         vim.command('checktime')
-        vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
+        vim.command('autocmd TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
 
         self._vim_lock.release()
         logging.info("Released lock")
@@ -338,9 +345,9 @@ class WebSocketServer(object):
         msg = self._recv()
 
         rx = re.compile('^Sec-WebSocket-Key:\s+(\S+)\s*$', re.M)
-        match = rx.search(msg)
+        match = rx.search(msg.decode('utf-8'))
         if not match:
-            raise
+            raise Exception("Did not match 'Sec-WebSocket-Key' in handshake")
         logging.debug('key = %s', match.group(1))
         accept = self.__class__._get_accept(match.group(1))
         logging.debug('accept = %s', accept)
@@ -351,7 +358,7 @@ class WebSocketServer(object):
             "Connection: Upgrade\r\n" +
             "Sec-WebSocket-Accept: " + accept + "\r\n\r\n")
         logging.debug(send)
-        self._conn.sendall(send)
+        self._conn.sendall(send.encode('utf-8'))
 
     def _recv(self, buf_len=4096, timeout=None, sleep=0.1, block=True):
         msg = None
@@ -384,8 +391,8 @@ class WebSocketServer(object):
             else:
                 string = self._conn.recv(buf_len)
             if msg is None:
-                msg = ''
-            msg = msg + string
+                msg = bytearray()
+            msg.extend(string)
             if len(string) < buf_len:
                 break
         return msg
@@ -399,7 +406,7 @@ class WebSocketServer(object):
                 msg = None
                 break
 
-            ret = ''
+            ret = bytearray()
             try:
                 self._conn.setblocking(0)
                 ret = self._conn.recv(buf_len)
@@ -428,9 +435,10 @@ class WebSocketServer(object):
     @staticmethod
     def _get_accept(string):
         sha = hashlib.sha1()
-        sha.update(string + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11")
+        sha.update(string.encode('utf-8'))
+        sha.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode('utf-8'))
         accept = base64.b64encode(sha.digest())
-        return accept
+        return accept.decode('utf-8')
 
     @staticmethod
     def startwebsocket(port, vim_buffer, lock, done, to_thread, from_thread):
@@ -512,7 +520,7 @@ def GhostStart():
         vim.command('echom "Starting server"')
         logging.info("Starting HTTP server")
         vim.command('autocmd VimLeave * GhostStop')
-        vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
+        vim.command('autocmd TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
         HTTPSERVER.vim_lock.release()
     else:
         vim.command('echo "Server is already running"')
@@ -593,7 +601,10 @@ if __name__ == '__main__':
             lines = []
             while not done[0]:
                 try:
-                    string = raw_input('> ')
+                    if sys.version_info >= (3, 0):
+                        string = input('> ')
+                    else:
+                        string = raw_input('> ')
                 except EOFError:
                     print()
                     break

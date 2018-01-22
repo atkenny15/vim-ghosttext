@@ -103,7 +103,8 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
 - [x] Lock updates to a single buffer
 - [x] Fix logging
 - [x] Test with multiple connections (from different browser tabs)
-- [ ] Test python3 support
+- [x] Test python3 support
+- [ ] Improve `sock.recv()` calls
 - [ ] Vim Documentation
 - [ ] Improve comments
 - [ ] Allow HTTP port to be modified
