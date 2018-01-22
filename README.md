@@ -10,12 +10,29 @@ To install the plugin it is recommended to use a Vim plugin manager such as [vim
 Plug 'atkenny15/vim-ghosttext'
 ```
 
-The following commands are proved:
+The following commands are provided:
 
 - `GhostStart`: Start the GhostText HTTP server
 - `GhostStop`: Stop the GhostText HTTP server (this is called on `QuitPre` if `GhostStart` has been called)
 
 A detailed log can be found at: `<temp>/ghosttext-vim-log.txt`. Under Unix like systems this is typically `/tmp/ghosttext-vim-log.txt`. Please provide this log if you run into any issues.
+
+To use the plugin:
+
+1. Launch vim/gvim
+2. Start the HTTP server with `:GhostStart`
+3. Change to the Vim buffer you want to work with
+    - All text in this buffer will be replaced
+    - Each connection from GhostText will communicate with the current buffer at the time the connection is made
+4. Navigate to a web page supported by GhostText and click the ghost button to connect to the editor
+5. Once the connection is made begin typing in either the browser or Vim and both should update in real-time with changes from the other application
+6. When done editing click the GhostText button in the browser to close the connection
+    - Due to a bug in GhostText, do not click the button again until reloading the page
+7. At this point Vim can be left open for additional connections or closed.
+
+Here is a demo made using [Peek](https://github.com/phw/peek):
+
+<img src="promo/demo.gif" alt="Demo screencast">
 
 ## Design
 
