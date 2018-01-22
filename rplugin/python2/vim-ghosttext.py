@@ -575,16 +575,8 @@ if __name__ == '__main__':
     args = parser.parse_args(sys.argv[1:])
 
     temp_fn = os.path.join(tempfile.gettempdir(), 'ghosttext-vim-log.txt')
-    try:
-        os.remove(temp_fn)
-    except OSError as e:
-        if e.errno == 2:
-            # OSError: [Errno 2] No such file or directory
-            pass
-        else:
-            raise
-
-    logging.basicConfig(format='[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s', filename=temp_fn, level=logging.INFO)
+    logging.basicConfig(format='[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s',
+            filename=temp_fn, level=logging.INFO, filemode='w')
     logging.info("Starting script...")
 
     # This runs the script without Vim to make debugging easier, input comes
