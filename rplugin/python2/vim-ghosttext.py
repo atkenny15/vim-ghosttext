@@ -63,6 +63,7 @@ class Frame(object):
         self.payload = payload
         self.mask_key = mask_key
         self.mask = mask
+        self.valid = True
 
         # Internally controlled
         if self.payload is None:
@@ -104,18 +105,25 @@ class Frame(object):
             next_byte = next_byte + i + 1
 
         self.payload = data[next_byte:]
-        if self.opcode == Frame.TEXT:
-            unmasked = bytearray()
-            for i in range(self.payload_len):
-                j = i % 4
-                incoming_octet = self.payload[i]
-                mask_octet = (self.mask_key >> (j * 8)) & 0xff
-                unmasked.append(incoming_octet ^ mask_octet)
-            self.payload = unmasked
-        elif self.opcode == Frame.CLOSE:
-            self.closed = True
+
+        if len(self.payload) < self.payload_len:
+            logging.error("Incorrect payload length: {} vs {}".format(
+                len(self.payload), self.payload_len))
+            self.valid = False
         else:
-            raise Exception(self.opcode)
+            if self.opcode == Frame.TEXT:
+                unmasked = bytearray()
+                for i in range(self.payload_len):
+                    j = i % 4
+                    incoming_octet = self.payload[i]
+                    mask_octet = (self.mask_key >> (j * 8)) & 0xff
+                    unmasked.append(incoming_octet ^ mask_octet)
+                self.payload = unmasked
+            elif self.opcode == Frame.CLOSE:
+                self.closed = True
+            else:
+                logging.error("Unsupported opcode: {}".format(self.opcode))
+                self.valid = False
 
     def _set_data(self):
         self.data = bytearray()
@@ -239,6 +247,13 @@ class WebSocketServer(object):
             # If data was received on the socket
             if recv is not None:
                 frame = Frame(data=bytearray(recv))
+                if not frame.valid:
+                    self._vim_lock.acquire()
+                    logging.error("Invalid frame received")
+                    vim.command('echom "Invalid frame received"')
+                    self._vim_lock.release()
+                    continue
+
                 logging.debug("Received: '%s'", frame)
 
                 if frame.closed:

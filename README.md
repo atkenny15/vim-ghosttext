@@ -104,7 +104,7 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
 - [x] Fix logging
 - [x] Test with multiple connections (from different browser tabs)
 - [x] Test python3 support
-- [ ] Improve `sock.recv()` calls
+- [x] Fix bug when sending large amounts of data from browser
 - [ ] Vim Documentation
 - [ ] Improve comments
 - [ ] Allow HTTP port to be modified
