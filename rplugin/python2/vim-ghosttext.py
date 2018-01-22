@@ -161,11 +161,14 @@ class Frame(object):
 #--------------------------------------------------
 
 class WebSocketServer(object):
-    def __init__(self, port, lock, done, to_thread, from_thread):
+    def __init__(self, port, vim_buffer, lock, done, to_thread, from_thread):
         self.port = port
         self._sock = None
         self._conn = None
         self._addr = None
+
+        # Vim buffer to update
+        self._vim_buffer = vim_buffer
 
         # Lock for accessing Vim
         self._vim_lock = lock
@@ -245,6 +248,9 @@ class WebSocketServer(object):
                     # Otherwise send data to Vim
                     logging.info("Data received")
                     self._update_to_vim(frame.payload.decode('utf-8'))
+                    self._vim_lock.acquire()
+                    vim.command('echo "Data received from GhostText"')
+                    self._vim_lock.release()
 
             # Check to see if GhostNotify was called
             if self._to_thread.is_set():
@@ -277,7 +283,7 @@ class WebSocketServer(object):
         self._vim_lock.acquire()
         logging.info("Lock acquired")
 
-        lines = vim.current.buffer[:]
+        lines = self._vim_buffer[:]
 
         self._vim_lock.release()
         logging.info("Released lock")
@@ -321,7 +327,7 @@ class WebSocketServer(object):
         logging.info("Lock acquired")
 
         vim.command('autocmd! TextChanged,TextChangedI * python GhostNotify()')
-        vim.current.buffer[:] = request['text'].split('\n')
+        self._vim_buffer[:] = request['text'].split('\n')
         vim.command('checktime')
         vim.command('autocmd TextChanged,TextChangedI * python GhostNotify()')
 
@@ -427,8 +433,8 @@ class WebSocketServer(object):
         return accept
 
     @staticmethod
-    def startwebsocket(port, lock, done, to_thread, from_thread):
-        websocketserver = WebSocketServer(port, lock, done, to_thread, from_thread)
+    def startwebsocket(port, vim_buffer, lock, done, to_thread, from_thread):
+        websocketserver = WebSocketServer(port, vim_buffer, lock, done, to_thread, from_thread)
         thread = threading.Thread(target=websocketserver.serve_forever)
         thread.daemon = False
         thread.start()
@@ -455,7 +461,14 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
 
         to_thread = threading.Event()
         from_thread = threading.Event()
-        sock = WebSocketServer.startwebsocket(port, self.server.vim_lock, self.server.done, to_thread, from_thread)
+        sock = WebSocketServer.startwebsocket(
+                port,
+                self.server.vim_buffer,
+                self.server.vim_lock,
+                self.server.done,
+                to_thread,
+                from_thread
+            )
         self.server.websocks.append({'sock': sock, 'to_thread': to_thread, 'from_thread': from_thread})
 
         logging.info("Websocket started on port %d", port)
@@ -474,6 +487,7 @@ class MyHTTPServer(BaseHTTPServer.HTTPServer, object):
             raise
         if hasattr(self, 'websocks'):
             raise
+        self.vim_buffer = vim.current.buffer
         self.vim_lock = threading.Lock()
         self.done = threading.Event()
         self.websocks = []

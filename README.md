@@ -100,20 +100,21 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
 
 ## TODO
 
-- [ ] Lock updates to a single buffer
+- [x] Lock updates to a single buffer
 - [ ] Fix logging
 - [ ] Test with multiple connections (from different browser tabs)
-- [ ] Test, test, test...
+- [ ] Test python3 support
+- [ ] Vim Documentation
+- [ ] Improve comments
+- [ ] Allow HTTP port to be modified
+- [ ] Better WebSocket port selection
+- [ ] Write tests
 - [ ] Add better support for WebSocket
     - [ ] Support all valid frame opcodes
     - [ ] Client side support
         - [ ] Support mask generation in a Frame
     - [x] Test payload lengths > 16-bit
     - [ ] Better validation of handshake header
-- [ ] Vim Documentation
-- [ ] Improve comments
-- [ ] Allow HTTP port to be modified
-- [ ] Better WebSocket port selection
 
 ## References
 
