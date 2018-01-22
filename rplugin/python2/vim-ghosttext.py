@@ -463,7 +463,7 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         from_thread = threading.Event()
         sock = WebSocketServer.startwebsocket(
                 port,
-                self.server.vim_buffer,
+                vim.current.buffer,
                 self.server.vim_lock,
                 self.server.done,
                 to_thread,
@@ -487,7 +487,6 @@ class MyHTTPServer(BaseHTTPServer.HTTPServer, object):
             raise
         if hasattr(self, 'websocks'):
             raise
-        self.vim_buffer = vim.current.buffer
         self.vim_lock = threading.Lock()
         self.done = threading.Event()
         self.websocks = []

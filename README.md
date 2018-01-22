@@ -102,7 +102,7 @@ The highly useful [it's All Text!](https://addons.mozilla.org/en-US/firefox/addo
 
 - [x] Lock updates to a single buffer
 - [x] Fix logging
-- [ ] Test with multiple connections (from different browser tabs)
+- [x] Test with multiple connections (from different browser tabs)
 - [ ] Test python3 support
 - [ ] Vim Documentation
 - [ ] Improve comments
