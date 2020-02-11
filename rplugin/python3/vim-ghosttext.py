@@ -32,20 +32,25 @@ import subprocess
 PYCMD = None
 if sys.version_info >= (3, 0):
     import http.server as BaseHTTPServer
-    PYCMD = 'python3'
+
+    PYCMD = "python3"
 else:
     import http.server
-    PYCMD = 'python'
 
-#--------------------------------------------------
+    PYCMD = "python"
+
+# --------------------------------------------------
 # Frame
-#--------------------------------------------------
+# --------------------------------------------------
+
 
 class Frame(object):
     TEXT = 1
     CLOSE = 8
 
-    def __init__(self, data=None, fin=1, opcode=TEXT, payload=None, mask=0, mask_key=0x0):
+    def __init__(
+        self, data=None, fin=1, opcode=TEXT, payload=None, mask=0, mask_key=0x0
+    ):
         self.data = data
 
         # User settable
@@ -72,10 +77,10 @@ class Frame(object):
         data = self.data
 
         self.fin = bool(data[0] & 0x80)
-        self.opcode = data[0] & 0x0f
+        self.opcode = data[0] & 0x0F
 
         self.mask = bool(data[1] & 0x80)
-        self.payload_len = data[1] & 0x7f
+        self.payload_len = data[1] & 0x7F
 
         next_byte = 2
         if self.payload_len == 126:
@@ -98,8 +103,11 @@ class Frame(object):
         self.payload = data[next_byte:]
 
         if len(self.payload) < self.payload_len:
-            logging.error("Incorrect payload length: {} vs {}".format(
-                len(self.payload), self.payload_len))
+            logging.error(
+                "Incorrect payload length: {} vs {}".format(
+                    len(self.payload), self.payload_len
+                )
+            )
             self.valid = False
         else:
             if self.opcode == Frame.TEXT:
@@ -107,7 +115,7 @@ class Frame(object):
                 for i in range(self.payload_len):
                     j = i % 4
                     incoming_octet = self.payload[i]
-                    mask_octet = (self.mask_key >> (j * 8)) & 0xff
+                    mask_octet = (self.mask_key >> (j * 8)) & 0xFF
                     unmasked.append(incoming_octet ^ mask_octet)
                 self.payload = unmasked
             elif self.opcode == Frame.CLOSE:
@@ -119,31 +127,33 @@ class Frame(object):
     def _set_data(self):
         self.data = bytearray()
 
-        self.data.extend([
-            ((self.fin & 0x1) << 7) | (self.opcode & 0xf),
-        ])
+        self.data.extend(
+            [((self.fin & 0x1) << 7) | (self.opcode & 0xF),]
+        )
 
         if self.payload_len >= 126:
             if self.payload_len < (1 << 16):
-                self.data.append(((self.mask & 0x1) << 7) | 0x7e)
+                self.data.append(((self.mask & 0x1) << 7) | 0x7E)
                 for i in reversed(list(range(2))):
-                    self.data.append((self.payload_len >> (i * 8)) & 0xff)
+                    self.data.append((self.payload_len >> (i * 8)) & 0xFF)
             else:
-                self.data.append(((self.mask & 0x1) << 7) | 0x7f)
+                self.data.append(((self.mask & 0x1) << 7) | 0x7F)
                 for i in reversed(list(range(8))):
-                    self.data.append((self.payload_len >> (i * 8)) & 0xff)
+                    self.data.append((self.payload_len >> (i * 8)) & 0xFF)
         else:
-            self.data.append(((self.mask & 0x1) << 7) | (self.payload_len & 0x7f))
+            self.data.append(((self.mask & 0x1) << 7) | (self.payload_len & 0x7F))
 
         if self.mask:
             if self.mask_key is None:
                 raise Exception("Missing mask key")
             raise Exception("TODO")
-        
+
         self.data.extend(self.payload)
 
     def __str__(self):
-        string = textwrap.dedent("""
+        string = (
+            textwrap.dedent(
+                """
             Fin:         %s
             Closed:      %s
             Opcode:      %x
@@ -151,20 +161,25 @@ class Frame(object):
             Mask Key:    %08x
             Payload Len: %s
             Payload:     %s
-        """) % (
-            self.fin,
-            self.closed,
-            self.opcode,
-            self.mask,
-            self.mask_key,
-            self.payload_len,
-            self.payload.decode('utf-8'),
+        """
+            )
+            % (
+                self.fin,
+                self.closed,
+                self.opcode,
+                self.mask,
+                self.mask_key,
+                self.payload_len,
+                self.payload.decode("utf-8"),
+            )
         )
         return string
 
-#--------------------------------------------------
+
+# --------------------------------------------------
 # WebSocket
-#--------------------------------------------------
+# --------------------------------------------------
+
 
 class WebSocketServer(object):
     def __init__(self, port, vim_buffer, lock, done, to_thread, from_thread):
@@ -194,7 +209,7 @@ class WebSocketServer(object):
         logging.info("Starting websocket on port %d", self.port)
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._sock.bind(('localhost', port))
+        self._sock.bind(("localhost", port))
         self._sock.listen(5)
 
     def __del__(self):
@@ -251,8 +266,10 @@ class WebSocketServer(object):
                     # If the server indicated to close the socket via a close
                     # frame
                     self._vim_lock.acquire()
-                    logging.info('GhostText closed the connection')
-                    vim.command('echom "GhostText closed the connection, try re-loading the webpage if this was unexpected"')
+                    logging.info("GhostText closed the connection")
+                    vim.command(
+                        'echom "GhostText closed the connection, try re-loading the webpage if this was unexpected"'
+                    )
                     self._vim_lock.release()
                     self._conn.close()
                     self._conn = None
@@ -260,7 +277,7 @@ class WebSocketServer(object):
                 else:
                     # Otherwise send data to Vim
                     logging.info("Data received")
-                    self._update_to_vim(frame.payload.decode('utf-8'))
+                    self._update_to_vim(frame.payload.decode("utf-8"))
                     self._vim_lock.acquire()
                     vim.command('echo "Data received from GhostText"')
                     self._vim_lock.release()
@@ -300,21 +317,23 @@ class WebSocketServer(object):
 
         self._vim_lock.release()
         logging.info("Released lock")
-        text = '\n'.join(lines)
+        text = "\n".join(lines)
         self._send_text(text)
 
     def _send_text(self, text):
         data = {
-            'text': text,
-            'selections': [{'start': len(text), 'end': len(text)}],
-            'title': 'ghosttext-vim',
-            'url': '',
-            'syntax': '',
+            "text": text,
+            "selections": [{"start": len(text), "end": len(text)}],
+            "title": "ghosttext-vim",
+            "url": "",
+            "syntax": "",
         }
 
         logging.debug("Sending: '%s'", data)
 
-        frame = Frame(fin=1, opcode=Frame.TEXT, mask=0, payload=json.dumps(data).encode('utf-8'))
+        frame = Frame(
+            fin=1, opcode=Frame.TEXT, mask=0, payload=json.dumps(data).encode("utf-8")
+        )
         logging.debug("Sending: '%s'", str(frame))
         try:
             self._conn.sendall(frame.data)
@@ -339,10 +358,12 @@ class WebSocketServer(object):
         self._vim_lock.acquire()
         logging.info("Lock acquired")
 
-        vim.command('autocmd! TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
-        self._vim_buffer[:] = request['text'].split('\n')
-        vim.command('checktime')
-        vim.command('autocmd TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
+        vim.command(
+            "autocmd! TextChanged,TextChangedI * {} GhostNotify()".format(PYCMD)
+        )
+        self._vim_buffer[:] = request["text"].split("\n")
+        vim.command("checktime")
+        vim.command("autocmd TextChanged,TextChangedI * {} GhostNotify()".format(PYCMD))
 
         self._vim_lock.release()
         logging.info("Released lock")
@@ -350,21 +371,24 @@ class WebSocketServer(object):
     def _handshake(self):
         msg = self._recv()
 
-        rx = re.compile('^Sec-WebSocket-Key:\s+(\S+)\s*$', re.M)
-        match = rx.search(msg.decode('utf-8'))
+        rx = re.compile("^Sec-WebSocket-Key:\s+(\S+)\s*$", re.M)
+        match = rx.search(msg.decode("utf-8"))
         if not match:
             raise Exception("Did not match 'Sec-WebSocket-Key' in handshake")
-        logging.debug('key = %s', match.group(1))
+        logging.debug("key = %s", match.group(1))
         accept = self.__class__._get_accept(match.group(1))
-        logging.debug('accept = %s', accept)
+        logging.debug("accept = %s", accept)
 
         send = str(
-            "HTTP/1.1 101 Switching Protocols\r\n" +
-            "Upgrade: websocket\r\n" +
-            "Connection: Upgrade\r\n" +
-            "Sec-WebSocket-Accept: " + accept + "\r\n\r\n")
+            "HTTP/1.1 101 Switching Protocols\r\n"
+            + "Upgrade: websocket\r\n"
+            + "Connection: Upgrade\r\n"
+            + "Sec-WebSocket-Accept: "
+            + accept
+            + "\r\n\r\n"
+        )
         logging.debug(send)
-        self._conn.sendall(send.encode('utf-8'))
+        self._conn.sendall(send.encode("utf-8"))
 
     def _recv(self, buf_len=4096, timeout=None, sleep=0.1, block=True):
         msg = None
@@ -387,11 +411,11 @@ class WebSocketServer(object):
                     else:
                         raise
                 if string is None:
-                    #logging.debug("Exception")
+                    # logging.debug("Exception")
                     msg = None
                     break
                 elif len(string) == 0:
-                    #logging.debug("No data")
+                    # logging.debug("No data")
                     msg = None
                     break
             else:
@@ -441,27 +465,31 @@ class WebSocketServer(object):
     @staticmethod
     def _get_accept(string):
         sha = hashlib.sha1()
-        sha.update(string.encode('utf-8'))
-        sha.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode('utf-8'))
+        sha.update(string.encode("utf-8"))
+        sha.update("258EAFA5-E914-47DA-95CA-C5AB0DC85B11".encode("utf-8"))
         accept = base64.b64encode(sha.digest())
-        return accept.decode('utf-8')
+        return accept.decode("utf-8")
 
     @staticmethod
     def startwebsocket(port, vim_buffer, lock, done, to_thread, from_thread):
-        websocketserver = WebSocketServer(port, vim_buffer, lock, done, to_thread, from_thread)
+        websocketserver = WebSocketServer(
+            port, vim_buffer, lock, done, to_thread, from_thread
+        )
         thread = threading.Thread(target=websocketserver.serve_forever)
         thread.daemon = False
         thread.start()
         return websocketserver
 
-#--------------------------------------------------
+
+# --------------------------------------------------
 # HTTP Server
-#--------------------------------------------------
+# --------------------------------------------------
+
 
 class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     def _set_headers(self):
         self.send_response(200)
-        self.send_header('Content-type', 'application/json')
+        self.send_header("Content-type", "application/json")
         self.end_headers()
 
     def do_GET(self):
@@ -476,14 +504,16 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         to_thread = threading.Event()
         from_thread = threading.Event()
         sock = WebSocketServer.startwebsocket(
-                port,
-                vim.current.buffer,
-                self.server.vim_lock,
-                self.server.done,
-                to_thread,
-                from_thread
-            )
-        self.server.websocks.append({'sock': sock, 'to_thread': to_thread, 'from_thread': from_thread})
+            port,
+            vim.current.buffer,
+            self.server.vim_lock,
+            self.server.done,
+            to_thread,
+            from_thread,
+        )
+        self.server.websocks.append(
+            {"sock": sock, "to_thread": to_thread, "from_thread": from_thread}
+        )
 
         logging.info("Websocket started on port %d", port)
         self.wfile.write(json.dumps(response_obj).encode())
@@ -494,27 +524,30 @@ class WebRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
         vim.command('echom "Connection received from GhostText"')
         self.server.vim_lock.release()
 
+
 class MyHTTPServer(BaseHTTPServer.HTTPServer, object):
     def __init__(self, *args, **kwargs):
         super(MyHTTPServer, self).__init__(*args, **kwargs)
-        if hasattr(self, 'vim_lock'):
+        if hasattr(self, "vim_lock"):
             raise
-        if hasattr(self, 'websocks'):
+        if hasattr(self, "websocks"):
             raise
         self.vim_lock = threading.Lock()
         self.done = threading.Event()
         self.websocks = []
 
-#--------------------------------------------------
+
+# --------------------------------------------------
 # Main
-#--------------------------------------------------
+# --------------------------------------------------
 
 HTTPSERVER = None
+
 
 def GhostStart():
     global HTTPSERVER
     if HTTPSERVER is None:
-        HTTPSERVER = MyHTTPServer(('localhost', 4001), WebRequestHandler)
+        HTTPSERVER = MyHTTPServer(("localhost", 4001), WebRequestHandler)
 
         thread = threading.Thread(target=HTTPSERVER.serve_forever)
 
@@ -525,11 +558,12 @@ def GhostStart():
         HTTPSERVER.vim_lock.acquire()
         vim.command('echom "Starting server"')
         logging.info("Starting HTTP server")
-        vim.command('autocmd VimLeave * GhostStop')
-        vim.command('autocmd TextChanged,TextChangedI * {} GhostNotify()'.format(PYCMD))
+        vim.command("autocmd VimLeave * GhostStop")
+        vim.command("autocmd TextChanged,TextChangedI * {} GhostNotify()".format(PYCMD))
         HTTPSERVER.vim_lock.release()
     else:
         vim.command('echo "Server is already running"')
+
 
 def GhostStop():
     global HTTPSERVER
@@ -538,7 +572,7 @@ def GhostStop():
     else:
         HTTPSERVER.vim_lock.acquire()
         vim.command('echom "Stopping server"')
-        vim.command('autocmd! VimLeave * GhostStop')
+        vim.command("autocmd! VimLeave * GhostStop")
         HTTPSERVER.vim_lock.release()
 
         logging.info("Stopping threads")
@@ -546,6 +580,7 @@ def GhostStop():
         logging.info("Stopping HTTP server")
         HTTPSERVER.shutdown()
         HTTPSERVER = None
+
 
 def GhostNotify():
     global HTTPSERVER
@@ -558,38 +593,47 @@ def GhostNotify():
         new = []
         for ws in HTTPSERVER.websocks:
             # Indicate to the valid websockets that there is data ready in Vim
-            if ws['sock'].valid:
+            if ws["sock"].valid:
                 new.append(ws)
-                if ws['to_thread'].is_set():
+                if ws["to_thread"].is_set():
                     logging.error("To event is already set")
-                if ws['from_thread'].is_set():
+                if ws["from_thread"].is_set():
                     logging.error("From event is already set")
                 found = found + 1
                 if found:
                     logging.info("Setting event")
-                    ws['to_thread'].set()
+                    ws["to_thread"].set()
                     wait.append(ws)
         HTTPSERVER.websocks = new
 
         for ws in wait:
             logging.info("Waiting for thread completion")
-            ws['from_thread'].wait()
+            ws["from_thread"].wait()
             logging.info("Thread done")
-            ws['from_thread'].clear()
+            ws["from_thread"].clear()
 
         if found == 0:
             logging.error("No valid websockets found")
         if found > 1:
             logging.error("Multiple valid websockets found")
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument('--run', default=False, action='store_true', help='run from commandline')
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--run", default=False, action="store_true", help="run from commandline"
+    )
     args = parser.parse_args(sys.argv[1:])
 
-    temp_fn = os.path.join(tempfile.gettempdir(), 'ghosttext-vim-log.txt')
-    logging.basicConfig(format='[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s',
-            filename=temp_fn, level=logging.INFO, filemode='w')
+    temp_fn = os.path.join(tempfile.gettempdir(), "ghosttext-vim-log.txt")
+    logging.basicConfig(
+        format="[ %(levelname)-5s %(asctime)s %(threadName)s ] %(message)s",
+        filename=temp_fn,
+        level=logging.INFO,
+        filemode="w",
+    )
     logging.info("Starting script...")
 
     # This runs the script without Vim to make debugging easier, input comes
@@ -598,6 +642,7 @@ if __name__ == '__main__':
         GhostStart()
 
         done = [False]
+
         def handler(signum, frame):
             done[0] = True
 
@@ -608,9 +653,9 @@ if __name__ == '__main__':
             while not done[0]:
                 try:
                     if sys.version_info >= (3, 0):
-                        string = eval(input('> '))
+                        string = eval(input("> "))
                     else:
-                        string = input('> ')
+                        string = input("> ")
                 except EOFError:
                     print()
                     break
