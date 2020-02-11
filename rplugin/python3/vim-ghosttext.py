@@ -15,29 +15,15 @@ import base64
 import textwrap
 import tempfile
 
-try:
-    import readline
-except:
-    pass
-
 import logging
 
 try:
     import vim
-except:
+except Exception:
     from vimstub import vim
 
-import subprocess
-
-PYCMD = None
-if sys.version_info >= (3, 0):
-    import http.server as BaseHTTPServer
-
-    PYCMD = "python3"
-else:
-    import http.server
-
-    PYCMD = "python"
+import http.server as BaseHTTPServer
+PYCMD = "python3"
 
 # --------------------------------------------------
 # Frame
@@ -128,7 +114,7 @@ class Frame(object):
         self.data = bytearray()
 
         self.data.extend(
-            [((self.fin & 0x1) << 7) | (self.opcode & 0xF),]
+            [((self.fin & 0x1) << 7) | (self.opcode & 0xF)]
         )
 
         if self.payload_len >= 126:
