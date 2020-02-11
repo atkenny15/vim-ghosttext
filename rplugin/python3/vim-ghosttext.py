@@ -1,14 +1,5 @@
-#!/usr/bin/env python
-#
-# Uber, Inc. (c) 2017
-#
+#!/usr/bin/env python3
 
-"""
-Module docstring documenting the usage of the command line interface (CLI).
-"""
-
-from __future__ import absolute_import
-from __future__ import print_function
 import argparse
 import sys
 import os
@@ -43,7 +34,7 @@ if sys.version_info >= (3, 0):
     import http.server as BaseHTTPServer
     PYCMD = 'python3'
 else:
-    import BaseHTTPServer
+    import http.server
     PYCMD = 'python'
 
 #--------------------------------------------------
@@ -135,11 +126,11 @@ class Frame(object):
         if self.payload_len >= 126:
             if self.payload_len < (1 << 16):
                 self.data.append(((self.mask & 0x1) << 7) | 0x7e)
-                for i in reversed(range(2)):
+                for i in reversed(list(range(2))):
                     self.data.append((self.payload_len >> (i * 8)) & 0xff)
             else:
                 self.data.append(((self.mask & 0x1) << 7) | 0x7f)
-                for i in reversed(range(8)):
+                for i in reversed(list(range(8))):
                     self.data.append((self.payload_len >> (i * 8)) & 0xff)
         else:
             self.data.append(((self.mask & 0x1) << 7) | (self.payload_len & 0x7f))
@@ -617,9 +608,9 @@ if __name__ == '__main__':
             while not done[0]:
                 try:
                     if sys.version_info >= (3, 0):
-                        string = input('> ')
+                        string = eval(input('> '))
                     else:
-                        string = raw_input('> ')
+                        string = input('> ')
                 except EOFError:
                     print()
                     break

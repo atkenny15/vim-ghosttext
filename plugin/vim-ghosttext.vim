@@ -1,14 +1,14 @@
-if !has('python')
+if !has('python3')
     echom "Vim is compiled without python support - disabling vim-ghosttext"
     finish
 endif
 
 function! s:GhostNotify()
-    python GhostNotify()
+    py3 GhostNotify()
 endfunction
 
-command! GhostStart :python GhostStart()
-command! GhostStop :python GhostStop()
+command! GhostStart :py3 GhostStart()
+command! GhostStop :py3 GhostStop()
 
-let s:pyscript = join([expand('<sfile>:p:h'), "..", "rplugin", "python2", "vim-ghosttext.py"], '/')
-execute 'pyfile ' . s:pyscript
+let s:pyscript = join([expand('<sfile>:p:h'), "..", "rplugin", "python3", "vim-ghosttext.py"], '/')
+execute 'py3file ' . s:pyscript
